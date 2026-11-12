@@ -1,3 +1,17 @@
-opencv-python
-numpy
-Pillow
+# Core computer-vision stack
+numpy>=1.26
+opencv-python>=4.9
+Pillow>=10.0
+
+# Interfaces
+streamlit>=1.30
+
+# Evaluation and charts
+matplotlib>=3.8
+
+# Optional OCR (also needs the Tesseract engine installed separately;
+# the code degrades gracefully if Tesseract is missing)
+pytesseract>=0.3.10
+
+# Testing
+pytest>=8.0
