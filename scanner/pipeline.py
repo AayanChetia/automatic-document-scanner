@@ -44,6 +44,7 @@ class PipelineResult:
     method: str                    # how the document was detected
     found: bool                    # whether a VALIDATED quad was detected
     confidence: float              # 0..1 detection confidence (0 for a fallback)
+    clipped: bool                  # True if the page extends beyond the frame
     mode: str                      # enhancement mode applied
 
 
@@ -93,11 +94,12 @@ def scan_image(
 
     if corners_override is not None:
         corners_full = order_points(corners_override)
-        method, found, confidence = "manual", True, 1.0
+        method, found, confidence, clipped = "manual", True, 1.0, False
     else:
-        # 3. Detect the document on the small edge image.
-        det = _detect.detect_document(pre.closed)
-        method, found, confidence = det.method, det.found, det.confidence
+        # 3. Detect the document on the small COLOUR image (multi-cue + GrabCut).
+        det = _detect.detect_document(small)
+        method, found, confidence, clipped = (det.method, det.found,
+                                              det.confidence, det.clipped)
         # 4. Scale the detected corners back up to the ORIGINAL resolution,
         #    so the warp samples full-quality pixels.
         corners_full = order_points(det.corners * ratio)
@@ -124,5 +126,6 @@ def scan_image(
         method=method,
         found=found,
         confidence=confidence,
+        clipped=clipped,
         mode=mode,
     )

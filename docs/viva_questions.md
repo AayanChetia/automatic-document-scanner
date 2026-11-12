@@ -1,7 +1,7 @@
 # Viva Questions & Answers — Automatic Document Scanner
 
 Short, defensible answers to the questions most likely to come up. Grouped by
-topic. (40 questions.)
+topic. (46 questions.)
 
 ---
 
@@ -249,3 +249,50 @@ sub-scores: how much of the frame it fills, how close its interior angles are to
 90°, how rectangular (non-stretched) it is, and whether it's convex. It drives the
 UI: high confidence → green success; low confidence or a fallback → yellow warning
 with manual adjustment. It turns a silent failure into an honest, actionable one.
+
+**41. How do you detect a white page on a white (or light) table?**
+Grayscale Canny fails because paper and desk have almost the same brightness. So
+I detect edges on **multiple cues** and combine them: besides grayscale, I run
+Canny on the **LAB a and b colour channels** and the **HSV saturation** channel,
+plus a **morphological gradient**, and OR the results. Paper and desk almost
+always differ in hue or saturation even when brightness matches, so the colour
+channels reveal a boundary the grayscale channel cannot see.
+
+**42. Why LAB and HSV channels specifically?**
+LAB separates lightness (L) from the two colour axes (a = green–red, b =
+blue–yellow); the a/b channels carry colour difference independent of brightness.
+HSV's S (saturation) channel captures how "colourful" a pixel is. A faint cream
+page on a white desk has near-identical L but different a/b and S, so edges show
+up there.
+
+**43. What is GrabCut and when do you use it?**
+GrabCut is an interactive foreground-segmentation algorithm: you give it a
+rectangle around the object, it models foreground and background colours with
+Gaussian mixture models and refines a segmentation by iterated graph cuts
+(min-cut/max-flow). I use it as a **fallback** when no edge-based quad scores well
+— it separates the page from the background by colour statistics rather than
+edges, then I fit a quad to the largest foreground region. It's the expensive
+method, so it only runs on hard cases.
+
+**44. You have several detection methods — how do you choose between them?**
+I generate candidate quads from every method (contour on grayscale, contour on
+the multi-cue edges, Hough, GrabCut), **validate** each (area, convexity, angles,
+aspect), and **score** the survivors with a blend of area, rectangularity, **edge
+support** (how much of the quad's outline lies on real edges) and **inside-vs-
+outside contrast** (LAB colour difference across the border). The highest-scoring
+valid candidate wins, and the UI shows which method produced it.
+
+**45. What happens when the page runs off the edge of the photo?**
+The scanner is **border-aware**: when the segmented page presses against the image
+border, I snap those corners to the edge and flag the result as *clipped* with the
+message "some corners were estimated", instead of discarding it. Honest caveat:
+a corner that is outside the frame **cannot truly be recovered** — it isn't in the
+image — so the clipped warp is approximate and the best fix is to re-shoot with
+the whole page in frame. Manual corner clicking is the final fallback.
+
+**46. Doesn't all this extra processing make it slow?**
+Not for normal photos: the cheap contour method handles them in ~10 ms and the
+GrabCut fallback is **skipped** when a candidate already scores well. GrabCut only
+runs on genuinely hard images, which raises the *average* to ~70 ms on the test
+set — still interactive. In the web app results are cached, so adjusting a slider
+doesn't re-run detection.

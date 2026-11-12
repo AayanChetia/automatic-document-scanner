@@ -17,8 +17,9 @@ laptop and — crucially for an academic project — **every step is transparent
 explainable**. The system is delivered as a reusable Python package with three
 interfaces (command line, a Streamlit web app, and a live webcam mode) and is
 quantitatively evaluated on a labelled test set, achieving a mean corner
-localisation IoU of **93.7%** and a detection success rate of **90.6%** at an
-average of **~9 ms per image**.
+localisation IoU of **93.4%** and a detection success rate of **90.6%**, running
+in real time (common pages ~10 ms; the GrabCut fallback for hard cases raises the
+average to ~70 ms).
 
 ---
 
@@ -203,14 +204,44 @@ accept the first candidate that is a **convex quadrilateral** (4 points) large
 enough to be the document. Convexity and the 4-point test reject logos, text
 blocks and noise.
 
-### 6.7 Fallbacks
-- **Hough line transform.** If no closed quad forms (broken/occluded boundary),
-  `HoughLines` votes for straight lines in the edge image
-  ($x\cos\theta + y\sin\theta = \rho$). We group lines into near-horizontal and
-  near-vertical sets, take the outermost of each, and **intersect** them to
-  recover four corners.
-- **Full image / manual.** If even that fails, the whole frame is used, and the
-  web UI lets the user drag the four corners by hand.
+### 6.7 Multi-cue detection, GrabCut and candidate scoring
+A single grayscale-Canny contour search fails on genuinely hard photos — most
+notably a **white page on a white desk**, where paper and background have almost
+identical brightness. Detection therefore uses several cues and picks the best
+candidate by score rather than trusting the first quad it finds.
+
+- **Multi-cue edge map.** Besides grayscale, Canny is also run on the **LAB a and
+  b colour channels** and the **HSV saturation** channel, plus a **morphological
+  gradient**; the results are OR-combined. White paper and a white desk usually
+  still differ in hue or saturation even when their brightness matches, so the
+  colour channels expose a boundary the grayscale channel is blind to.
+- **Candidate generators.** Candidates come from (i) contour search on the
+  grayscale edges, (ii) contour search on the multi-cue edges, (iii) **Hough**
+  line intersections, and (iv) **GrabCut** segmentation. GrabCut is initialised
+  with a rectangle inset from the image border; it separates foreground from
+  background by colour statistics (Gaussian mixture models) and iterated graph
+  cuts, and we fit a quad to the largest foreground component (`approxPolyDP`,
+  falling back to `minAreaRect`). Because GrabCut is the expensive method, it is
+  run only when the cheaper candidates are weak.
+- **Candidate scoring.** Every candidate is first validated (area ≥ 20% of the
+  frame, convex, interior angles 45–135°, aspect ≤ 4:1), then scored by a blend
+  of: **area**, **rectangularity** (how close the angles are to 90°), **edge
+  support** (what fraction of the quad's outline lies on real edges), and
+  **inside-vs-outside contrast** (LAB colour difference between a band just
+  inside and just outside the quad). The highest-scoring valid candidate wins,
+  and the UI reports which method produced it.
+- **Border-aware quads.** The page may legitimately run off the frame. When the
+  GrabCut foreground presses against the image border, those corners are snapped
+  to the border and the result is flagged *clipped* ("some corners were
+  estimated"), rather than discarded.
+
+### 6.7.1 Fallbacks
+- **Hough line transform.** `HoughLines` votes for straight lines in the edge
+  image ($x\cos\theta + y\sin\theta = \rho$); we intersect the outermost
+  near-horizontal and near-vertical lines to recover four corners.
+- **Full image / manual.** If **no** candidate validates, the whole frame is used
+  with low confidence, and the web UI asks the user to set the four corners by
+  hand (clicking directly on the image). Manual corners are the final fallback.
 
 ### 6.8 Ordering the corners
 The transform maps source point *i* to destination point *i*, so corners must be
@@ -293,8 +324,8 @@ agreement of each threshold method with the known clean page).
 |--------|-------|
 | Images evaluated | 32 |
 | Detection success rate (IoU ≥ 0.85) | **90.6%** |
-| Mean corner IoU | **93.7%** |
-| Average processing time | **~9 ms/image** |
+| Mean corner IoU | **93.4%** |
+| Average processing time | **~70 ms/image** (common pages ~10 ms; GrabCut fallback on hard cases) |
 | Binarisation accuracy (adaptive vs Otsu) | **97.4%** vs **95.7%** |
 
 **By condition**
@@ -302,7 +333,7 @@ agreement of each threshold method with the known clean page).
 | Condition | N | Success rate | Mean IoU |
 |-----------|---|--------------|----------|
 | Plain | 8 | 100.0% | 96.4% |
-| Tilted | 8 | 100.0% | 96.2% |
+| Tilted | 8 | 100.0% | 95.1% |
 | Low-light | 8 | 100.0% | 96.3% |
 | Cluttered | 8 | 62.5% | 85.8% |
 
@@ -317,10 +348,19 @@ weak point (62.5%): busy, similar-contrast backgrounds and objects that occlude
 the page border break the single closed contour, and the Hough fallback cannot
 always recover a clean quad. **Adaptive thresholding beats global Otsu** on
 binarisation (97.4% vs 95.7%), confirming the theory that local thresholds cope
-better with uneven lighting. Processing is real-time (~9 ms/image on CPU).
+better with uneven lighting. Processing stays interactive: a typical page is
+~10 ms, and the multi-cue + GrabCut fallback (hard cases only) raises the average
+to ~70 ms on a CPU.
 
-**Robustness safeguards.** Every detected quad — from either the contour or the
-Hough path — must pass a shared **validation** check before it is accepted: it
+**Multi-cue detection.** A white page on a white desk, or a page that runs off
+the frame, is handled by combining colour/saturation edge cues with a GrabCut
+segmentation fallback and choosing the best candidate by a score over area,
+rectangularity, edge support and inside/outside contrast (§6.7) — so the scanner
+finds a near-invisible white-on-white boundary and *flags* a clipped page instead
+of silently using the whole frame.
+
+**Robustness safeguards.** Every detected quad — from any method — must pass a
+shared **validation** check before it is accepted: it
 must cover ≥ 20% of the frame, be convex, have interior angles within 45–135°,
 and warp to an aspect ratio ≤ 4:1. This prevents the detector from ever
 returning a degenerate "sliver" quad (e.g. a thin strip along the text columns
@@ -338,6 +378,14 @@ reduced resolution so text edges fade while the page outline survives.
 
 - **Cluttered / low-contrast backgrounds** are the main failure mode: when the
   page edge blends into the background or is occluded, contour detection fails.
+  The multi-cue colour edges and GrabCut fallback improve this but do not solve
+  it completely.
+- **Corners outside the frame cannot truly be recovered.** When the page runs off
+  the image border, the real corner is simply not in the photo. The scanner is
+  *border-aware* — it snaps the affected corners to the image edge and flags the
+  result as *clipped* — but this only estimates where the page is cut off; the
+  genuine corner position is unrecoverable, so the warp of a clipped page is
+  approximate and the user may need to re-shoot with the whole page in frame.
 - **Dense-text pages that fill the frame** (e.g. a newspaper photographed close
   up, with the page edges near or cut off at the image border) are hard: Canny
   responds to thousands of character edges, and with no clean outer boundary the

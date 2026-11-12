@@ -16,10 +16,13 @@ explainable.
 - **Full classical CV pipeline:** grayscale → Gaussian blur → auto-Canny →
   morphological close → contour/`approxPolyDP` quad detection → 4-point
   perspective warp → enhancement.
-- **Robust detection with fallbacks:** largest convex quad → Hough-line
-  intersection → full-image / manual corner picking. Every quad is **validated**
-  (area, convexity, angles, aspect) and given a **confidence score**, so a
-  degenerate "sliver" detection is rejected instead of reported as success.
+- **Robust multi-cue detection:** candidates from contour search (grayscale **and**
+  LAB/HSV colour + morphological-gradient edges), Hough lines, and a **GrabCut**
+  segmentation fallback are each **validated** (area, convexity, angles, aspect)
+  and **scored** (area, rectangularity, edge support, inside/outside contrast) —
+  the best wins, and the UI shows which method. Handles a **white page on a white
+  desk**, and is **border-aware** (flags a page that runs off the frame). Manual
+  corner picking is the final fallback.
 - **Four enhancement modes:** Original colour, Grayscale, **Magic colour**
   (CLAHE contrast boost) and **Black & White** (adaptive threshold), with Otsu
   as a comparison baseline.
@@ -137,14 +140,14 @@ tilted) with known ground-truth corners:
 | Metric | Value |
 |--------|-------|
 | Detection success rate (IoU ≥ 0.85) | **90.6%** |
-| Mean corner IoU | **93.7%** |
-| Average processing time | **~9 ms/image** |
+| Mean corner IoU | **93.4%** |
+| Average processing time | **~70 ms/image** (common pages ~10 ms; GrabCut on hard cases) |
 | Binarisation accuracy (adaptive vs Otsu) | **97.4%** vs **95.7%** |
 
 | Condition | Success rate | Mean IoU |
 |-----------|--------------|----------|
 | Plain | 100% | 96.4% |
-| Tilted | 100% | 96.2% |
+| Tilted | 100% | 95.1% |
 | Low-light | 100% | 96.3% |
 | Cluttered | 62.5% | 85.8% |
 
@@ -179,7 +182,7 @@ workflow with live detection, a confidence pill, and side-by-side preview:
 Automatic document scanner/
 ├── scanner/              # core CV package (one module per pipeline stage)
 │   ├── preprocess.py     # gray, blur, auto-Canny, morphological close
-│   ├── detect.py         # contour quad + Hough + full-image fallbacks
+│   ├── detect.py         # multi-cue candidates (colour edges + Hough + GrabCut), scored
 │   ├── transform.py      # corner ordering + perspective warp (homography)
 │   ├── enhance.py        # original / gray / magic (CLAHE) / bw / otsu
 │   ├── ocr.py            # optional pytesseract wrapper
@@ -200,7 +203,7 @@ Automatic document scanner/
 ├── docs/
 │   ├── report.md         # full project report
 │   ├── ppt_outline.md    # slide-by-slide presentation plan
-│   ├── viva_questions.md # 40 viva Q&A
+│   ├── viva_questions.md # 46 viva Q&A
 │   └── images/           # figures
 ├── results/              # charts + metrics (generated)
 └── requirements.txt
@@ -214,7 +217,7 @@ Automatic document scanner/
   architecture diagram, methodology theory and results).
 - **[docs/ppt_outline.md](docs/ppt_outline.md)** — 10–12 slide outline + live-demo
   plan.
-- **[docs/viva_questions.md](docs/viva_questions.md)** — 40 likely viva questions
+- **[docs/viva_questions.md](docs/viva_questions.md)** — 46 likely viva questions
   with concise answers.
 
 ---

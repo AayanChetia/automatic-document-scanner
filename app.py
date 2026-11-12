@@ -397,6 +397,10 @@ if not page["manual"] and result.found and result.confidence >= CONFIDENCE_OK:
     pill_html += f' · {result.confidence*100:.0f}%'
 pill_html += "</span>"
 st.markdown(pill_html, unsafe_allow_html=True)
+if result.clipped:
+    st.info("📐 Page extends beyond the photo: some corners were estimated. "
+            "Corners outside the frame can't be fully recovered — adjust them "
+            "manually if needed.")
 st.write("")
 
 # ---- Main side-by-side cards ----

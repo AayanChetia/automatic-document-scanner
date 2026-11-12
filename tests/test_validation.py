@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 
 from scanner.detect import (validate_quad, confidence_score, quad_metrics,
-                            detect_document, find_hough_quad)
+                            detect_document)
 
 SHAPE = (400, 600)  # (h, w)
 
@@ -55,23 +55,15 @@ def test_confidence_low_for_sliver_high_for_good():
     assert c_bad < 0.5 < c_good
 
 
-def test_detect_document_rejects_sliver_edges():
-    """End-to-end: an edge map whose only shape is a sliver yields found=False.
+def test_detect_document_rejects_sliver():
+    """End-to-end: an image whose only structure is a sliver -> found=False.
 
     This is the core regression: previously the Hough path accepted the sliver
-    and reported a (false) detection.
+    along text columns and reported a (false) detection.
     """
-    edges = np.zeros(SHAPE, np.uint8)
-    cv2.rectangle(edges, (290, 20), (320, 380), 255, -1)  # thin strip
-    result = detect_document(edges)
+    img = np.full((SHAPE[0], SHAPE[1], 3), 20, np.uint8)      # dark background
+    cv2.rectangle(img, (290, 20), (320, 380), (235, 235, 235), -1)  # thin strip
+    result = detect_document(img)
     assert result.found is False
     assert result.confidence == 0.0
     assert result.method == "fallback"
-
-
-def test_hough_rejects_sliver_directly():
-    """The Hough detector itself must not return a sliver as found."""
-    edges = np.zeros(SHAPE, np.uint8)
-    cv2.rectangle(edges, (290, 20), (320, 380), 255, 2)
-    result = find_hough_quad(edges)
-    assert result.found is False

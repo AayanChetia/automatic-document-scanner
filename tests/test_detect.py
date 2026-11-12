@@ -16,11 +16,11 @@ def _synthetic_doc(bg=40):
 
 
 def test_detects_page_quad():
-    """The pipeline should detect the page via the contour method."""
+    """The pipeline should detect the page via an edge-based method."""
     img, _ = _synthetic_doc()
     result = scan_image(img, mode="bw")
     assert result.found is True
-    assert result.method == "contour"
+    assert result.method in ("contour", "multi-channel")
 
 
 def test_detected_corners_near_truth():
