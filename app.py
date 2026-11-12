@@ -118,14 +118,17 @@ def new_page(name: str, data: bytes) -> dict:
 def ingest(files) -> None:
     """Append newly uploaded files to the page set (does not replace)."""
     added = 0
+    first_new = None
     for f in files:
         data = f.getvalue()
-        st.session_state.pages.append(new_page(f.name, data))
+        p = new_page(f.name, data)
+        st.session_state.pages.append(p)
+        first_new = first_new or p["id"]
         added += 1
     if added:
-        if st.session_state.sel_id is None:
-            st.session_state.sel_id = st.session_state.pages[0]["id"]
-        st.session_state.up_round += 1      # reset the uploader widget
+        st.session_state.sel_id = first_new          # focus the new page
+        st.session_state["_auto_preview"] = first_new  # auto-open its preview once
+        st.session_state.up_round += 1               # reset the uploader widget
         st.toast(f"Added {added} page(s)", icon="➕")
         st.rerun()
 
@@ -204,6 +207,89 @@ def capped_width(img: np.ndarray, target_h: int) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# Large preview modal (st.dialog)
+# --------------------------------------------------------------------------- #
+VIEW_OPTS = ["Original", "Final scan", "Side by side"]
+ZOOM_OPTS = ["Fit", "100%", "150%", "200%"]
+
+
+def _zoomed_image(img: np.ndarray, zoom: str, container_h: int = 640) -> None:
+    """Show a full-resolution image in a scrollable container at the given zoom.
+
+    'Fit' scales to the container width; a percentage renders at that fraction of
+    the image's true pixel width, and the container scrolls so you can pan around
+    to read small handwriting.
+    """
+    with st.container(height=container_h, border=False):
+        if zoom == "Fit":
+            st.image(to_display(img), use_container_width=True)
+        else:
+            pct = int(zoom.rstrip("%"))
+            st.image(to_display(img), width=max(1, int(img.shape[1] * pct / 100)))
+
+
+def open_preview(pid: int, view: str = "Final scan") -> None:
+    """Set the preview target and open the modal (resets zoom to Fit)."""
+    st.session_state.preview_page = pid
+    st.session_state["preview_view"] = view
+    st.session_state["preview_zoom"] = "Fit"
+    preview_dialog()
+
+
+@st.dialog("Document preview", width="large")
+def preview_dialog() -> None:
+    pages = st.session_state.pages
+    if not pages:
+        st.write("No pages to preview.")
+        return
+    pid = st.session_state.get("preview_page", pages[0]["id"])
+    idx = next((i for i, p in enumerate(pages) if p["id"] == pid), 0)
+    page = pages[idx]
+    ph = st.session_state.get("_proc_h", 450)
+    res = process(page, ph)
+
+    # Page navigation (no st.rerun -> keeps the dialog open).
+    n1, n2, n3 = st.columns([1, 2, 1])
+    if n1.button("⬅ Prev", disabled=idx == 0, use_container_width=True, key="pv_prev"):
+        st.session_state.preview_page = pages[idx - 1]["id"]
+    n2.markdown(f"<div style='text-align:center;font-weight:600;padding-top:6px'>"
+                f"Page {idx + 1} / {len(pages)} · {page['name']}</div>",
+                unsafe_allow_html=True)
+    if n3.button("Next ➡", disabled=idx >= len(pages) - 1,
+                 use_container_width=True, key="pv_next"):
+        st.session_state.preview_page = pages[idx + 1]["id"]
+
+    # View + zoom controls.
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        view = st.segmented_control("View", VIEW_OPTS, key="preview_view")
+    with c2:
+        zoom = st.select_slider("Zoom", ZOOM_OPTS, key="preview_zoom")
+    view = view or "Final scan"
+
+    if view == "Original":
+        _zoomed_image(res.original, zoom)
+        shown, tag = res.original, "original"
+    elif view == "Side by side":
+        a, b = st.columns(2)
+        with a:
+            st.caption("Original")
+            _zoomed_image(res.original, zoom, container_h=560)
+        with b:
+            st.caption(f"Final scan · {MODE_LABELS[page['mode']]}")
+            _zoomed_image(res.enhanced, zoom, container_h=560)
+        shown, tag = res.enhanced, "scan"
+    else:
+        _zoomed_image(res.enhanced, zoom)
+        shown, tag = res.enhanced, "scan"
+
+    png = cv2.imencode(".png", shown)[1].tobytes()
+    st.download_button("⬇️ Download shown image", png,
+                       file_name=f"{page['name'].rsplit('.', 1)[0]}_{tag}.png",
+                       mime="image/png", key="pv_dl", use_container_width=True)
+
+
+# --------------------------------------------------------------------------- #
 # Export helpers
 # --------------------------------------------------------------------------- #
 def _cv_to_pil(img: np.ndarray, quality: int) -> Image.Image:
@@ -266,6 +352,7 @@ with st.sidebar:
     process_height = st.slider("Detection resolution (px)", 300, 900, 450, 50,
                                help="Detection runs on a down-scaled copy; the "
                                     "final warp always uses full resolution.")
+    st.session_state["_proc_h"] = process_height   # so the preview modal can read it
     show_stages = st.toggle("Show pipeline stages", value=True)
 
     st.markdown("### ℹ️ About")
@@ -324,12 +411,16 @@ for i, page in enumerate(list(st.session_state.pages)):
         res = process(page, process_height)
         emoji, _, _ = page_status(page, res)
         thumb = to_display(res.enhanced)
+        # Full-resolution array with a capped display width -> the built-in
+        # fullscreen icon shows the sharp, full image, not a downscaled copy.
         st.image(thumb, width=capped_width(res.enhanced, THUMB_H))
         is_sel = page["id"] == st.session_state.sel_id
         st.markdown(f'<div class="thumb-name">{emoji} '
                     f'{"▶ " if is_sel else ""}{page["name"]}</div>',
                     unsafe_allow_html=True)
-        b1, b2, b3, b4 = st.columns(4)
+        b0, b1, b2, b3, b4 = st.columns(5)
+        if b0.button("🔍", key=f"pv{page['id']}", help="View large"):
+            open_preview(page["id"], "Final scan")
         b1.button("👁", key=f"sel{page['id']}", help="Select",
                   on_click=lambda pid=page["id"]: st.session_state.update(sel_id=pid))
         b2.button("⬆", key=f"up{page['id']}", help="Move up",
@@ -409,14 +500,21 @@ with cL:
     with st.container(border=True):
         st.markdown('<div class="card-title">Original · detected outline</div>',
                     unsafe_allow_html=True)
+        # Full-resolution array + capped display width -> sharp fullscreen icon.
         st.image(to_display(result.contour_overlay),
                  width=capped_width(result.contour_overlay, PREVIEW_H))
+        if st.button("🔍 View large", key=f"vl_orig{page['id']}",
+                     use_container_width=True):
+            open_preview(page["id"], "Original")
 with cR:
     with st.container(border=True):
         st.markdown(f'<div class="card-title">Final scan · {MODE_LABELS[page["mode"]]}'
                     '</div>', unsafe_allow_html=True)
         st.image(to_display(result.enhanced),
                  width=capped_width(result.enhanced, PREVIEW_H))
+        if st.button("🔍 View large", key=f"vl_final{page['id']}",
+                     use_container_width=True):
+            open_preview(page["id"], "Final scan")
 
 # ---- Manual corners: click directly on the image ----
 needs = page["manual"] or not (result.found and result.confidence >= CONFIDENCE_OK)
@@ -566,3 +664,9 @@ with st.expander("📝 Extract text (OCR) from the current page"):
 
 st.caption("Built with OpenCV + Streamlit · classical computer vision, no deep "
            "learning, no paid APIs.")
+
+# Auto-open the large preview of a freshly uploaded page's scan, once.
+if "_auto_preview" in st.session_state:
+    _pid = st.session_state.pop("_auto_preview")
+    if get_page(_pid):
+        open_preview(_pid, "Final scan")

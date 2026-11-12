@@ -28,6 +28,8 @@ explainable.
   as a comparison baseline.
 - **Three interfaces:** command line, a polished **Streamlit** web app, and a
   **live webcam** mode.
+- **Large preview modal:** inspect any page full-resolution with zoom/pan,
+  Original/Final/Side-by-side views, page navigation and download.
 - **Optional OCR** via Tesseract (degrades gracefully if not installed).
 - **Export** to PNG/JPG or a combined multi-page **PDF**.
 - **Quantitative evaluation:** success rate, corner **IoU**, timing, and
@@ -169,6 +171,12 @@ segmenter).
 workflow with live detection, a confidence pill, and side-by-side preview:
 
 ![Streamlit UI](docs/images/streamlit_ui.png)
+
+**Large preview modal** — click *🔍 View large* (or a thumbnail) to inspect a
+page full-resolution: Original / Final scan / Side-by-side, a zoom slider
+(Fit / 100 / 150 / 200%) in a scrollable pane, page navigation, and download:
+
+![Large preview](docs/images/streamlit_preview.png)
 
 | Pipeline stages | Before → after |
 |-----------------|----------------|
