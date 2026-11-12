@@ -17,8 +17,8 @@ laptop and — crucially for an academic project — **every step is transparent
 explainable**. The system is delivered as a reusable Python package with three
 interfaces (command line, a Streamlit web app, and a live webcam mode) and is
 quantitatively evaluated on a labelled test set, achieving a mean corner
-localisation IoU of **85.4%** and a detection success rate of **87.5%** at an
-average of **8.4 ms per image**.
+localisation IoU of **93.7%** and a detection success rate of **90.6%** at an
+average of **~9 ms per image**.
 
 ---
 
@@ -292,19 +292,19 @@ agreement of each threshold method with the known clean page).
 | Metric | Value |
 |--------|-------|
 | Images evaluated | 32 |
-| Detection success rate (IoU ≥ 0.85) | **87.5%** |
-| Mean corner IoU | **85.4%** |
-| Average processing time | **8.4 ms/image** |
+| Detection success rate (IoU ≥ 0.85) | **90.6%** |
+| Mean corner IoU | **93.7%** |
+| Average processing time | **~9 ms/image** |
 | Binarisation accuracy (adaptive vs Otsu) | **97.4%** vs **95.7%** |
 
 **By condition**
 
 | Condition | N | Success rate | Mean IoU |
 |-----------|---|--------------|----------|
-| Plain | 8 | 100.0% | 96.2% |
-| Tilted | 8 | 100.0% | 96.0% |
-| Low-light | 8 | 100.0% | 96.2% |
-| Cluttered | 8 | 50.0% | 53.1% |
+| Plain | 8 | 100.0% | 96.4% |
+| Tilted | 8 | 100.0% | 96.2% |
+| Low-light | 8 | 100.0% | 96.3% |
+| Cluttered | 8 | 62.5% | 85.8% |
 
 ![Detection performance by condition](../results/success_by_condition.png)
 
@@ -312,12 +312,25 @@ agreement of each threshold method with the known clean page).
 
 **Discussion.** The classical detector is **highly robust to perspective tilt
 and low light** (100% success, ~96% IoU) — exactly the cases geometry and
-adaptive thresholding handle well. The **cluttered** condition is the clear
-weak point (50%): busy, similar-contrast backgrounds and objects that occlude
+adaptive thresholding handle well. The **cluttered** condition remains the
+weak point (62.5%): busy, similar-contrast backgrounds and objects that occlude
 the page border break the single closed contour, and the Hough fallback cannot
 always recover a clean quad. **Adaptive thresholding beats global Otsu** on
 binarisation (97.4% vs 95.7%), confirming the theory that local thresholds cope
-better with uneven lighting. Processing is real-time (~8 ms/image on CPU).
+better with uneven lighting. Processing is real-time (~9 ms/image on CPU).
+
+**Robustness safeguards.** Every detected quad — from either the contour or the
+Hough path — must pass a shared **validation** check before it is accepted: it
+must cover ≥ 20% of the frame, be convex, have interior angles within 45–135°,
+and warp to an aspect ratio ≤ 4:1. This prevents the detector from ever
+returning a degenerate "sliver" quad (e.g. a thin strip along the text columns
+of a newspaper). The pipeline also reports a **confidence score** (0–1) derived
+from these metrics; if no quad validates, it falls back to the full frame with
+`found = False` and confidence 0, and the UI shows a *low-confidence* warning
+and invites manual corner adjustment rather than claiming success. To cope with
+text-dense pages, a **median blur** is applied before Canny (it erases fine
+character edges while preserving the long page border) and detection runs at a
+reduced resolution so text edges fade while the page outline survives.
 
 ---
 
@@ -325,6 +338,15 @@ better with uneven lighting. Processing is real-time (~8 ms/image on CPU).
 
 - **Cluttered / low-contrast backgrounds** are the main failure mode: when the
   page edge blends into the background or is occluded, contour detection fails.
+- **Dense-text pages that fill the frame** (e.g. a newspaper photographed close
+  up, with the page edges near or cut off at the image border) are hard: Canny
+  responds to thousands of character edges, and with no clean outer boundary the
+  detector can latch onto text columns. The median-blur + reduced-resolution
+  preprocessing and the quad-validation/confidence safeguards prevent a *wrong*
+  detection here (the system reports low confidence and asks for manual corners
+  or a rotation, rather than warping to a nonsense sliver), but fully automatic
+  detection in this case still needs the user to confirm/adjust the corners — a
+  learned page segmenter (§10) is the proper fix.
 - Assumes the document is **roughly the largest, fully-visible** object; it does
   not handle folded pages, severe curl, or partially cropped documents.
 - Extreme perspective (> ~45°) can break corner ordering.

@@ -76,6 +76,22 @@ def to_pdf_bytes(images: list[np.ndarray]) -> bytes:
     return buf.getvalue()
 
 
+def apply_rotation(image: np.ndarray, degrees: int) -> np.ndarray:
+    """Rotate an image by a multiple of 90 degrees (for sideways photos)."""
+    if degrees == 90:
+        return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    if degrees == 180:
+        return cv2.rotate(image, cv2.ROTATE_180)
+    if degrees == 270:
+        return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    return image
+
+
+# Below this confidence a detection is treated as low-confidence (yellow),
+# never shown as a green success.
+CONFIDENCE_OK = 0.5
+
+
 # --------------------------------------------------------------------------- #
 # Sidebar - global controls
 # --------------------------------------------------------------------------- #
@@ -134,6 +150,20 @@ except ValueError as exc:
     st.error(str(exc))
     st.stop()
 
+# --- Rotation control (for sideways photos, e.g. a newspaper shot landscape) --
+rot_key = f"rot::{selected_name}"
+if rot_key not in st.session_state:
+    st.session_state[rot_key] = 0
+rcol1, rcol2 = st.columns([1, 4])
+with rcol1:
+    if st.button("🔄 Rotate 90°"):
+        st.session_state[rot_key] = (st.session_state[rot_key] + 90) % 360
+rotation = st.session_state[rot_key]
+with rcol2:
+    st.caption(f"Current rotation: **{rotation}°** — use this if the photo is "
+               "sideways or upside-down.")
+image = apply_rotation(image, rotation)
+
 h, w = image.shape[:2]
 
 # First pass: automatic detection, to seed the corner sliders.
@@ -142,7 +172,7 @@ auto = scan_image(image, mode=mode, process_height=process_height)
 # ----- Optional manual corner adjustment --------------------------------- #
 adjust = st.checkbox(
     "🛠️ Adjust corners manually",
-    value=not auto.found,
+    value=not (auto.found and auto.confidence >= CONFIDENCE_OK),
     help="Turn on if the detected outline is wrong. Sliders start from the "
          "auto-detected corners.",
 )
@@ -166,14 +196,23 @@ if adjust:
 result = scan_image(image, mode=mode, process_height=process_height,
                     corners_override=corners_override)
 
-# ----- Detection status -------------------------------------------------- #
-if result.method == "manual":
-    st.success("Using your manually adjusted corners.")
-elif result.found:
-    st.success(f"Document detected automatically (method: {result.method}).")
-else:
-    st.warning(f"No clean quadrilateral found (fell back to: {result.method}). "
-               "Turn on 'Adjust corners manually' to fix it.")
+# ----- Detection status + confidence ------------------------------------- #
+conf_pct = f"{result.confidence * 100:.0f}%"
+scol1, scol2 = st.columns([3, 1])
+with scol2:
+    st.metric("Detection confidence", conf_pct)
+with scol1:
+    if result.method == "manual":
+        st.success("Using your manually adjusted corners.")
+    elif result.found and result.confidence >= CONFIDENCE_OK:
+        st.success(f"Document detected automatically "
+                   f"(method: {result.method}, confidence {conf_pct}).")
+    else:
+        # Fallback OR low-confidence detection: never a green success.
+        st.warning("⚠️ Low confidence – please adjust corners manually. "
+                   f"(method: {result.method}, confidence {conf_pct}) "
+                   "Turn on 'Adjust corners manually' below, and try the "
+                   "'Rotate 90°' button if the page is sideways.")
 
 # ----- Detected outline + final result side by side ---------------------- #
 col_a, col_b = st.columns(2)
@@ -225,6 +264,8 @@ with dl2:
             img = decode_upload(f)
         except ValueError:
             continue
+        # Respect any rotation the user applied to this image.
+        img = apply_rotation(img, st.session_state.get(f"rot::{f.name}", 0))
         all_enhanced.append(scan_image(img, mode=mode,
                                        process_height=process_height).enhanced)
     st.download_button(

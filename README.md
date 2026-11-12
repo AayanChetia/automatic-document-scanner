@@ -17,7 +17,9 @@ explainable.
   morphological close → contour/`approxPolyDP` quad detection → 4-point
   perspective warp → enhancement.
 - **Robust detection with fallbacks:** largest convex quad → Hough-line
-  intersection → full-image / manual corner picking.
+  intersection → full-image / manual corner picking. Every quad is **validated**
+  (area, convexity, angles, aspect) and given a **confidence score**, so a
+  degenerate "sliver" detection is rejected instead of reported as success.
 - **Four enhancement modes:** Original colour, Grayscale, **Magic colour**
   (CLAHE contrast boost) and **Black & White** (adaptive threshold), with Otsu
   as a comparison baseline.
@@ -130,23 +132,27 @@ tilted) with known ground-truth corners:
 
 | Metric | Value |
 |--------|-------|
-| Detection success rate (IoU ≥ 0.85) | **87.5%** |
-| Mean corner IoU | **85.4%** |
-| Average processing time | **8.4 ms/image** |
+| Detection success rate (IoU ≥ 0.85) | **90.6%** |
+| Mean corner IoU | **93.7%** |
+| Average processing time | **~9 ms/image** |
 | Binarisation accuracy (adaptive vs Otsu) | **97.4%** vs **95.7%** |
 
 | Condition | Success rate | Mean IoU |
 |-----------|--------------|----------|
-| Plain | 100% | 96.2% |
-| Tilted | 100% | 96.0% |
-| Low-light | 100% | 96.2% |
-| Cluttered | 50% | 53.1% |
+| Plain | 100% | 96.4% |
+| Tilted | 100% | 96.2% |
+| Low-light | 100% | 96.3% |
+| Cluttered | 62.5% | 85.8% |
 
 ![Detection by condition](results/success_by_condition.png)
 ![Adaptive vs Otsu](results/threshold_comparison.png)
 
 The detector is very robust to **tilt** and **low light**; **cluttered**
-backgrounds are the main challenge (future work: a learned page segmenter).
+backgrounds and **dense-text pages that fill the frame** are the main challenge.
+Every detected quad is validated (area / convexity / angles / aspect) and scored
+for **confidence**; low-confidence cases show a warning and invite manual corner
+adjustment instead of reporting a false success (future work: a learned page
+segmenter).
 
 ---
 
@@ -188,7 +194,7 @@ Automatic document scanner/
 ├── docs/
 │   ├── report.md         # full project report
 │   ├── ppt_outline.md    # slide-by-slide presentation plan
-│   ├── viva_questions.md # 37 viva Q&A
+│   ├── viva_questions.md # 40 viva Q&A
 │   └── images/           # figures
 ├── results/              # charts + metrics (generated)
 └── requirements.txt
@@ -202,7 +208,7 @@ Automatic document scanner/
   architecture diagram, methodology theory and results).
 - **[docs/ppt_outline.md](docs/ppt_outline.md)** — 10–12 slide outline + live-demo
   plan.
-- **[docs/viva_questions.md](docs/viva_questions.md)** — 37 likely viva questions
+- **[docs/viva_questions.md](docs/viva_questions.md)** — 40 likely viva questions
   with concise answers.
 
 ---

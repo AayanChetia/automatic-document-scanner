@@ -89,10 +89,33 @@ def close_edges(edges: np.ndarray, ksize: int = 5, iterations: int = 2) -> np.nd
     return closed
 
 
-def preprocess(image: np.ndarray, blur_ksize: int = 5, sigma: float = 0.33) -> PreprocessResult:
-    """Run the full preprocessing chain and return every intermediate."""
+def median_denoise(gray: np.ndarray, ksize: int = 5) -> np.ndarray:
+    """Median blur to wipe out fine text edges while keeping the page border.
+
+    WHY (the text-heavy-page fix): on a newspaper or a dense printed page, Canny
+    lights up thousands of little character edges, which can form spurious
+    contours and mislead the detector into locking onto a text column. A median
+    filter removes small high-contrast speckle (individual letters) far more
+    aggressively than a Gaussian, because the median of a neighbourhood ignores
+    a few dark pixels of text, yet it preserves the long, continuous edges of
+    the page boundary. Applying it before Canny makes detection far more robust
+    on documents that fill the frame with text. ksize must be odd.
+    """
+    if ksize % 2 == 0:
+        ksize += 1
+    return cv2.medianBlur(gray, ksize)
+
+
+def preprocess(image: np.ndarray, blur_ksize: int = 5, sigma: float = 0.33,
+               median_ksize: int = 5) -> PreprocessResult:
+    """Run the full preprocessing chain and return every intermediate.
+
+    Order: grayscale -> Gaussian blur -> median blur -> auto-Canny -> close.
+    The median step is what tames dense-text pages (see ``median_denoise``).
+    """
     gray = to_grayscale(image)
     blurred = blur(gray, blur_ksize)
+    blurred = median_denoise(blurred, median_ksize)
     edges = auto_canny(blurred, sigma)
     closed = close_edges(edges)
     return PreprocessResult(gray=gray, blurred=blurred, edges=edges, closed=closed)

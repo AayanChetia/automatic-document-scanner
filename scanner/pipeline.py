@@ -42,7 +42,8 @@ class PipelineResult:
     enhanced: np.ndarray
     corners_full: np.ndarray       # (4,2) corners on the FULL-res image, ordered
     method: str                    # how the document was detected
-    found: bool                    # whether a real quad was detected
+    found: bool                    # whether a VALIDATED quad was detected
+    confidence: float              # 0..1 detection confidence (0 for a fallback)
     mode: str                      # enhancement mode applied
 
 
@@ -59,7 +60,7 @@ def _draw_quad(image: np.ndarray, corners: np.ndarray) -> np.ndarray:
 def scan_image(
     image: np.ndarray,
     mode: str = "bw",
-    process_height: int = 500,
+    process_height: int = 450,
     corners_override: np.ndarray | None = None,
 ) -> PipelineResult:
     """Run the full document-scan pipeline on one BGR image.
@@ -71,8 +72,10 @@ def scan_image(
     mode : str
         Enhancement mode (see ``scanner.enhance.MODES``).
     process_height : int
-        Height the image is scaled to for detection. Detection runs on this
-        small image; the warp uses the original pixels (via the scale ratio).
+        Height the image is scaled to for detection. Detection deliberately runs
+        at a modest resolution so fine text edges fade out (via the blur) while
+        the long page edges survive; the warp always uses the original pixels
+        (via the scale ratio), so output quality is unaffected.
     corners_override : np.ndarray | None
         If given (shape (4,2), in FULL-resolution coordinates), skip automatic
         detection and use these corners. This is how the Streamlit app applies
@@ -90,11 +93,11 @@ def scan_image(
 
     if corners_override is not None:
         corners_full = order_points(corners_override)
-        method, found = "manual", True
+        method, found, confidence = "manual", True, 1.0
     else:
         # 3. Detect the document on the small edge image.
         det = _detect.detect_document(pre.closed)
-        method, found = det.method, det.found
+        method, found, confidence = det.method, det.found, det.confidence
         # 4. Scale the detected corners back up to the ORIGINAL resolution,
         #    so the warp samples full-quality pixels.
         corners_full = order_points(det.corners * ratio)
@@ -120,5 +123,6 @@ def scan_image(
         corners_full=corners_full,
         method=method,
         found=found,
+        confidence=confidence,
         mode=mode,
     )

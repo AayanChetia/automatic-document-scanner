@@ -1,7 +1,7 @@
 # Viva Questions & Answers — Automatic Document Scanner
 
 Short, defensible answers to the questions most likely to come up. Grouped by
-topic. (37 questions.)
+topic. (40 questions.)
 
 ---
 
@@ -219,3 +219,33 @@ explainable geometry. Also shadow/glare removal and better edge grouping.
 `pytesseract` calls the Tesseract engine on the cleaned scan to extract text. My
 wrapper checks whether Tesseract is available first and returns a clear message
 instead of crashing, so OCR is an optional bonus, never a hard dependency.
+
+**38. Tell me about a real failure you found and how you fixed it.**
+On a close-up photo of a **newspaper that filled the frame** (dense text, page
+edges near or cut off at the border), the Hough fallback latched onto a thin
+**sliver** of text columns, the warp produced a long thin strip, and the B&W
+output was nearly all white — yet the UI claimed success. I fixed it by adding a
+shared **quad-validation** step used by both detectors: a quad is rejected if it
+covers < 20% of the frame, is non-convex, has an interior angle outside 45–135°,
+or warps to an aspect ratio > 4:1. If nothing validates, the system falls back to
+the full frame with `found = False` and **confidence 0**, and the UI shows a
+*low-confidence* warning (never a green success) and asks the user to adjust the
+corners. I also made preprocessing more robust to text by adding a **median blur**
+before Canny and running detection at a **lower resolution**, so fine character
+edges fade while the page border survives, and I added a **Rotate 90°** control
+for sideways photos. A regression test now asserts that a sliver quad is rejected.
+
+**39. Why a median blur specifically for the newspaper case (vs. Gaussian)?**
+A median filter replaces each pixel with the median of its neighbourhood, so a
+handful of dark text pixels are ignored entirely — it removes small high-contrast
+speckle (letters) while keeping long continuous edges (the page border). A
+Gaussian just smooths everything and leaves faint text edges that Canny can still
+pick up. So median blur is the better tool for erasing dense text before edge
+detection.
+
+**40. What does your confidence score mean and how is it computed?**
+It's a 0–1 estimate of how "page-like" the detected quad is, blending four
+sub-scores: how much of the frame it fills, how close its interior angles are to
+90°, how rectangular (non-stretched) it is, and whether it's convex. It drives the
+UI: high confidence → green success; low confidence or a fallback → yellow warning
+with manual adjustment. It turns a silent failure into an honest, actionable one.
