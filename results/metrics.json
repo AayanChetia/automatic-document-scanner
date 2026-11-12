@@ -1,0 +1,291 @@
+{
+  "overall": {
+    "n_images": 32,
+    "success_rate": 0.875,
+    "mean_iou": 0.8538426648963753,
+    "avg_time_s": 0.008374978124976451,
+    "success_iou_threshold": 0.85,
+    "adaptive_accuracy": 0.9736973958333333,
+    "otsu_accuracy": 0.9571660807291666
+  },
+  "by_condition": {
+    "cluttered": {
+      "n": 8,
+      "mean_iou": 0.5313469182564649,
+      "success_rate": 0.5
+    },
+    "lowlight": {
+      "n": 8,
+      "mean_iou": 0.9618698236695279,
+      "success_rate": 1.0
+    },
+    "plain": {
+      "n": 8,
+      "mean_iou": 0.9617969772235078,
+      "success_rate": 1.0
+    },
+    "tilted": {
+      "n": 8,
+      "mean_iou": 0.9603569404360006,
+      "success_rate": 1.0
+    }
+  },
+  "per_image": [
+    {
+      "name": "cluttered_0.png",
+      "condition": "cluttered",
+      "iou": 0.9604,
+      "success": true,
+      "time_s": 0.0121,
+      "method": "contour"
+    },
+    {
+      "name": "cluttered_1.png",
+      "condition": "cluttered",
+      "iou": 0.9623,
+      "success": true,
+      "time_s": 0.0071,
+      "method": "contour"
+    },
+    {
+      "name": "cluttered_2.png",
+      "condition": "cluttered",
+      "iou": 0.0021,
+      "success": false,
+      "time_s": 0.0191,
+      "method": "hough"
+    },
+    {
+      "name": "cluttered_3.png",
+      "condition": "cluttered",
+      "iou": 0.0043,
+      "success": false,
+      "time_s": 0.0187,
+      "method": "hough"
+    },
+    {
+      "name": "cluttered_4.png",
+      "condition": "cluttered",
+      "iou": 0.2311,
+      "success": false,
+      "time_s": 0.0209,
+      "method": "hough"
+    },
+    {
+      "name": "cluttered_5.png",
+      "condition": "cluttered",
+      "iou": 0.9047,
+      "success": true,
+      "time_s": 0.0081,
+      "method": "contour"
+    },
+    {
+      "name": "cluttered_6.png",
+      "condition": "cluttered",
+      "iou": 0.9327,
+      "success": true,
+      "time_s": 0.007,
+      "method": "contour"
+    },
+    {
+      "name": "cluttered_7.png",
+      "condition": "cluttered",
+      "iou": 0.2532,
+      "success": false,
+      "time_s": 0.0202,
+      "method": "hough"
+    },
+    {
+      "name": "lowlight_0.png",
+      "condition": "lowlight",
+      "iou": 0.9604,
+      "success": true,
+      "time_s": 0.006,
+      "method": "contour"
+    },
+    {
+      "name": "lowlight_1.png",
+      "condition": "lowlight",
+      "iou": 0.9625,
+      "success": true,
+      "time_s": 0.0063,
+      "method": "contour"
+    },
+    {
+      "name": "lowlight_2.png",
+      "condition": "lowlight",
+      "iou": 0.9632,
+      "success": true,
+      "time_s": 0.0064,
+      "method": "contour"
+    },
+    {
+      "name": "lowlight_3.png",
+      "condition": "lowlight",
+      "iou": 0.9613,
+      "success": true,
+      "time_s": 0.0073,
+      "method": "contour"
+    },
+    {
+      "name": "lowlight_4.png",
+      "condition": "lowlight",
+      "iou": 0.9636,
+      "success": true,
+      "time_s": 0.0064,
+      "method": "contour"
+    },
+    {
+      "name": "lowlight_5.png",
+      "condition": "lowlight",
+      "iou": 0.961,
+      "success": true,
+      "time_s": 0.0061,
+      "method": "contour"
+    },
+    {
+      "name": "lowlight_6.png",
+      "condition": "lowlight",
+      "iou": 0.9607,
+      "success": true,
+      "time_s": 0.0067,
+      "method": "contour"
+    },
+    {
+      "name": "lowlight_7.png",
+      "condition": "lowlight",
+      "iou": 0.9622,
+      "success": true,
+      "time_s": 0.0064,
+      "method": "contour"
+    },
+    {
+      "name": "plain_0.png",
+      "condition": "plain",
+      "iou": 0.9594,
+      "success": true,
+      "time_s": 0.0062,
+      "method": "contour"
+    },
+    {
+      "name": "plain_1.png",
+      "condition": "plain",
+      "iou": 0.9619,
+      "success": true,
+      "time_s": 0.0067,
+      "method": "contour"
+    },
+    {
+      "name": "plain_2.png",
+      "condition": "plain",
+      "iou": 0.9631,
+      "success": true,
+      "time_s": 0.0074,
+      "method": "contour"
+    },
+    {
+      "name": "plain_3.png",
+      "condition": "plain",
+      "iou": 0.962,
+      "success": true,
+      "time_s": 0.0065,
+      "method": "contour"
+    },
+    {
+      "name": "plain_4.png",
+      "condition": "plain",
+      "iou": 0.9631,
+      "success": true,
+      "time_s": 0.0072,
+      "method": "contour"
+    },
+    {
+      "name": "plain_5.png",
+      "condition": "plain",
+      "iou": 0.9635,
+      "success": true,
+      "time_s": 0.0071,
+      "method": "contour"
+    },
+    {
+      "name": "plain_6.png",
+      "condition": "plain",
+      "iou": 0.9596,
+      "success": true,
+      "time_s": 0.0062,
+      "method": "contour"
+    },
+    {
+      "name": "plain_7.png",
+      "condition": "plain",
+      "iou": 0.9619,
+      "success": true,
+      "time_s": 0.006,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_0.png",
+      "condition": "tilted",
+      "iou": 0.9598,
+      "success": true,
+      "time_s": 0.007,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_1.png",
+      "condition": "tilted",
+      "iou": 0.9623,
+      "success": true,
+      "time_s": 0.0064,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_2.png",
+      "condition": "tilted",
+      "iou": 0.9624,
+      "success": true,
+      "time_s": 0.0063,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_3.png",
+      "condition": "tilted",
+      "iou": 0.9593,
+      "success": true,
+      "time_s": 0.0062,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_4.png",
+      "condition": "tilted",
+      "iou": 0.9577,
+      "success": true,
+      "time_s": 0.0059,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_5.png",
+      "condition": "tilted",
+      "iou": 0.9605,
+      "success": true,
+      "time_s": 0.0057,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_6.png",
+      "condition": "tilted",
+      "iou": 0.9604,
+      "success": true,
+      "time_s": 0.0068,
+      "method": "contour"
+    },
+    {
+      "name": "tilted_7.png",
+      "condition": "tilted",
+      "iou": 0.9605,
+      "success": true,
+      "time_s": 0.0056,
+      "method": "contour"
+    }
+  ]
+}
