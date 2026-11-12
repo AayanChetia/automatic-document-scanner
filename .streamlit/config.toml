@@ -1,0 +1,17 @@
+# Streamlit theme for the Automatic Document Scanner.
+# A clean dark theme with a single teal accent colour.
+
+[theme]
+base = "dark"
+primaryColor = "#2DD4BF"            # teal accent
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#1B2029"
+textColor = "#E6EAF1"
+font = "sans serif"
+
+[server]
+# Keep uploads reasonable for a laptop demo.
+maxUploadSize = 50
+
+[browser]
+gatherUsageStats = false

@@ -10,7 +10,8 @@ the slide). Keep text on slides minimal — speak the detail.
 - **Content:** Project title, your name, roll number, course, guide's name,
   institution, date.
 - **Visual:** A clean before→after image (photo of a tilted page → flat B&W
-  scan). Use `docs/images/before_after.png`.
+  scan), `docs/images/before_after.png`; or a screenshot of the polished web app,
+  `docs/images/streamlit_ui.png`.
 
 ---
 
@@ -112,17 +113,23 @@ the slide). Keep text on slides minimal — speak the detail.
 ## Live-demo plan (rehearse this!)
 
 > Have the Streamlit app already running before you start to avoid cold-start
-> lag: `streamlit run app.py`.
+> lag: `streamlit run app.py`. The UI is a clean **① Upload → ② Review & adjust →
+> ③ Export** workflow (see `docs/images/streamlit_ui.png`).
 
 1. **Web app (main demo).**
-   - Upload a tilted sample photo (`data/test_images/tilted_0.png`). Show the
-     detected green outline and the pipeline stages panel.
-   - Switch enhancement modes live (B&W → Magic colour) so the audience sees the
-     difference.
-   - Upload a **cluttered** image to honestly show a failure, then turn on
-     **"Adjust corners manually"** and fix it with the sliders — this shows you
-     understand the limitation *and* the fallback.
-   - Click **Download PDF** to prove export works.
+   - **① Upload** a tilted sample photo (`data/test_images/tilted_0.png`). Point
+     out the thumbnail strip with its ✅ detection status and the green
+     **"Auto-detected (contour) · 90%"** confidence pill.
+   - **② Review:** show the side-by-side *Original · detected outline* vs
+     *Final scan* cards. Switch enhancement mode with the segmented control
+     (Magic colour → B&W) so the audience sees the difference instantly. Expand
+     **"🔍 Show how it works: pipeline stages"** to walk the captioned stages.
+   - Upload a **cluttered** image to honestly show a low-confidence case (yellow
+     pill), then **click the 4 corners directly on the image** to fix it — this
+     shows you understand the limitation *and* the manual fallback. Use the
+     **Rotate** buttons if a photo is sideways.
+   - **③ Export:** choose A4, then click **📄 Download PDF** to prove export
+     works (note the estimated file size).
 2. **CLI (quick).** In a terminal:
    `python scan.py -i data/test_images -o results/demo.pdf -m bw`
    — show a whole folder scanned into one PDF in one command.

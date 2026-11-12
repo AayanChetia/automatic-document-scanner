@@ -82,8 +82,12 @@ app works fine without it; OCR simply reports that it's unavailable.
 ```bash
 streamlit run app.py
 ```
-Upload one or more photos, see every pipeline stage side by side, fix the corners
-with sliders if needed, pick an enhancement mode, run OCR, and download PNG/PDF.
+A 3-step workflow: **① Upload** one or more photos (reorder them for the PDF),
+**② Review & adjust** — rotate, switch enhancement mode with a segmented control,
+and if auto-detection is low-confidence **click the 4 corners directly on the
+image** (or fine-tune with sliders), **③ Export** to PDF (A4/Letter/Original),
+PNG, or a ZIP, with optional OCR. Expand *"Show how it works"* to see every
+pipeline stage with captions — great for the demo.
 
 ### 2. Command line (`scan.py`)
 ```bash
@@ -158,12 +162,14 @@ segmenter).
 
 ## 📸 Screenshots
 
+**The Streamlit web app** — a clean ①Upload → ②Review & adjust → ③Export
+workflow with live detection, a confidence pill, and side-by-side preview:
+
+![Streamlit UI](docs/images/streamlit_ui.png)
+
 | Pipeline stages | Before → after |
 |-----------------|----------------|
 | ![stages](docs/images/pipeline_stages.png) | ![before/after](docs/images/before_after.png) |
-
-> **Streamlit UI:** run `streamlit run app.py` and add your own screenshot here
-> after your demo (e.g. `docs/images/streamlit_ui.png`).
 
 ---
 
