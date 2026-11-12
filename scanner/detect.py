@@ -10,11 +10,14 @@ So detection now:
      OR-combined. A white page on a white desk usually still differs in colour
      or saturation even when brightness is identical.
   2. Generates CANDIDATE quads from several methods:
-       - contour on the grayscale edges        (method "contour")
+       - contour on the grayscale edges         (method "contour")
        - contour on the multi-cue edges         (method "multi-channel")
        - Hough line intersections               (method "hough")
+       - paper-colour mask (bright + low sat)   (method "paper")
        - GrabCut foreground segmentation        (method "grabcut")
-     GrabCut is the heavy fallback, run only when the cheap methods are weak.
+     The paper mask finds a white page on a coloured/dark background; GrabCut is
+     the heavy fallback, run only when the cheap methods are weak. A candidate
+     that is the whole image border is rejected as the frame, not a page.
   3. VALIDATES every candidate (area/convexity/angles/aspect) and SCORES the
      survivors by area + rectangularity + edge support along the quad sides +
      inside-vs-outside contrast. The best-scoring candidate wins, and its method
@@ -39,11 +42,17 @@ from .transform import order_points
 
 # --- Validation thresholds (used by every candidate) ---------------------- #
 MIN_AREA_RATIO = 0.20     # quad must cover >= 20% of the frame
+MAX_AREA_RATIO = 0.92     # above this it's the whole frame, not a page
 ANGLE_MIN = 45.0          # interior angles must stay within [45, 135] degrees
 ANGLE_MAX = 135.0
 MAX_ASPECT = 4.0          # warped page aspect ratio must be <= 4:1
 GOOD_SCORE = 0.78         # above this from a cheap method, skip GrabCut
 BORDER_PX = 3             # a corner this close to the edge = touching the border
+
+# Small score bonus so an edge/colour-based quad is preferred over GrabCut when
+# both validate (contour/paper-mask are more precise than a segmentation blob).
+METHOD_BONUS = {"contour": 0.05, "multi-channel": 0.05, "paper": 0.05,
+                "hough": 0.02, "grabcut": 0.0}
 
 
 @dataclass
@@ -109,11 +118,33 @@ def quad_metrics(corners: np.ndarray, shape: tuple[int, int]) -> dict:
     }
 
 
+def _is_frame(rect: np.ndarray, shape: tuple[int, int]) -> bool:
+    """True if the quad is essentially the whole image border (not a page).
+
+    A real document is surrounded by some background, so its quad does NOT hug
+    all four image edges. The frame does. We flag a quad as the frame when its
+    corners sit within a few pixels of the border on ALL four sides. (A page
+    clipped on one side touches only that side, so it is not flagged.)
+    """
+    h, w = shape[:2]
+    b = max(BORDER_PX, int(0.015 * min(h, w)))
+    xs, ys = rect[:, 0], rect[:, 1]
+    return bool(xs.min() <= b and ys.min() <= b
+                and xs.max() >= w - 1 - b and ys.max() >= h - 1 - b)
+
+
 def validate_quad(corners: np.ndarray, shape: tuple[int, int]) -> tuple[bool, dict]:
-    """Return (is_valid, metrics). Rejects tiny / skewed / sliver quads."""
+    """Return (is_valid, metrics). Rejects tiny / skewed / sliver / frame quads.
+
+    In addition to the geometry checks, a candidate is rejected if it covers
+    more than ``MAX_AREA_RATIO`` of the image, or hugs the border on all four
+    sides — both mean the detector locked onto the whole frame, not a page.
+    """
     m = quad_metrics(corners, shape)
+    rect = order_points(corners)
     ok = bool(
-        m["area_ratio"] >= MIN_AREA_RATIO
+        MIN_AREA_RATIO <= m["area_ratio"] <= MAX_AREA_RATIO
+        and not _is_frame(rect, shape)
         and m["convex"]
         and all(ANGLE_MIN <= a <= ANGLE_MAX for a in m["angles"])
         and m["aspect"] <= MAX_ASPECT
@@ -248,6 +279,59 @@ def _hough_candidates(closed: np.ndarray) -> list[np.ndarray]:
     return [np.array(pts, np.float32)] if len(pts) == 4 else []
 
 
+def _fill_and_fit(mask: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, bool] | None:
+    """Clean a binary mask, take the largest filled component, fit a quad."""
+    h, w = shape[:2]
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None
+    cnt = max(contours, key=cv2.contourArea)
+    if cv2.contourArea(cnt) < 0.15 * h * w:
+        return None
+    return _quad_from_contour(cnt, (h, w))
+
+
+def _skin_mask(bgr: np.ndarray) -> np.ndarray:
+    """Detect skin-coloured pixels (fingers) in YCrCb and HSV.
+
+    Used to keep a hand holding the page out of the GrabCut foreground, so the
+    detected document isn't stretched to include fingers.
+    """
+    ycrcb = cv2.cvtColor(bgr, cv2.COLOR_BGR2YCrCb)
+    _, cr, cb = cv2.split(ycrcb)
+    skin1 = (cr >= 133) & (cr <= 173) & (cb >= 77) & (cb <= 127)
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    hh, ss, vv = cv2.split(hsv)
+    skin2 = ((hh <= 25) | (hh >= 165)) & (ss >= 30) & (ss <= 190) & (vv >= 40)
+    skin = ((skin1 | skin2) * 255).astype(np.uint8)
+    return cv2.morphologyEx(skin, cv2.MORPH_OPEN,
+                            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+
+
+def _paper_mask_candidates(bgr: np.ndarray) -> list[tuple[np.ndarray, bool]]:
+    """Detect a page by its colour: bright (high V) and low saturation (S).
+
+    WHY: paper is close to white — high brightness and almost no colour — which
+    stands out from a coloured or dark background (a pink cloth, a wooden desk)
+    even when its *edges* are weak. We threshold bright + low-saturation pixels
+    in HSV (V via Otsu so it adapts to exposure, S with a fixed low cap), clean
+    the mask with morphology to bridge text gaps, take the largest filled
+    component and fit a quad. This cheaply finds white pages the edge methods
+    miss (e.g. pic7: a white notebook on a pink patterned cloth).
+    """
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    sat, val = hsv[:, :, 1], hsv[:, :, 2]
+    _, bright = cv2.threshold(val, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    low_sat = (sat < 80).astype(np.uint8) * 255
+    paper = cv2.bitwise_and(bright, low_sat)
+    paper = cv2.morphologyEx(paper, cv2.MORPH_OPEN,
+                             cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+    paper = cv2.morphologyEx(paper, cv2.MORPH_CLOSE,
+                             cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17)))
+    res = _fill_and_fit(paper, bgr.shape)
+    return [res] if res else []
+
+
 def _grabcut_candidates(bgr: np.ndarray, inset: float = 0.06) -> list[tuple[np.ndarray, bool]]:
     """Segment the page with GrabCut, then fit a quad to the foreground.
 
@@ -261,12 +345,17 @@ def _grabcut_candidates(bgr: np.ndarray, inset: float = 0.06) -> list[tuple[np.n
     h, w = bgr.shape[:2]
     if min(h, w) < 20:
         return []
-    mask = np.zeros((h, w), np.uint8)
     rx, ry = int(w * inset), int(h * inset)
     rw, rh = int(w * (1 - 2 * inset)), int(h * (1 - 2 * inset))
+    # Init mask: everything probable-background, the inset rectangle probable-
+    # foreground, and any skin-coloured pixels (fingers) forced to definite
+    # background so a hand holding the page is not merged into the document.
+    mask = np.full((h, w), cv2.GC_PR_BGD, np.uint8)
+    mask[ry:ry + rh, rx:rx + rw] = cv2.GC_PR_FGD
+    mask[_skin_mask(bgr) > 0] = cv2.GC_BGD
     bgd, fgd = np.zeros((1, 65), np.float64), np.zeros((1, 65), np.float64)
     try:
-        cv2.grabCut(bgr, mask, (rx, ry, rw, rh), bgd, fgd, 3, cv2.GC_INIT_WITH_RECT)
+        cv2.grabCut(bgr, mask, None, bgd, fgd, 3, cv2.GC_INIT_WITH_MASK)
     except Exception:
         return []
     fg = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
@@ -360,33 +449,38 @@ def detect_document(image: np.ndarray) -> DetectionResult:
     combined, combined_closed = multi_channel_edges(bgr)
     gray_closed = _gray_closed(bgr)
 
-    # Collect cheap candidates: (quad, method, clipped).
-    pool: list[tuple[np.ndarray, str, bool]] = []
-    pool += [(q, "contour", False) for q in _contour_candidates(gray_closed)]
-    pool += [(q, "multi-channel", False) for q in _contour_candidates(combined_closed)]
-    pool += [(q, "hough", False) for q in _hough_candidates(combined_closed)]
+    # best holds (effective_score, raw_score, quad, method, clipped, metrics).
+    # effective_score adds a small per-method bonus so a precise edge/colour quad
+    # beats a GrabCut blob on a tie; raw_score is reported as the confidence.
+    best = None
 
-    best = None  # (score, quad, method, clipped, metrics)
-    for quad, method, clipped in pool:
+    def consider(quad, method, clipped):
+        nonlocal best
         ok, m = validate_quad(quad, shape)
         if not ok:
-            continue
+            return
         s = score_candidate(quad, bgr, combined, m)
-        if best is None or s > best[0]:
-            best = (s, quad, method, clipped, m)
+        eff = s + METHOD_BONUS.get(method, 0.0)
+        if best is None or eff > best[0]:
+            best = (eff, s, quad, method, clipped, m)
 
-    # Expensive GrabCut only when cheap methods are weak or absent.
-    if best is None or best[0] < GOOD_SCORE:
-        for quad, clipped in _grabcut_candidates(bgr):
-            ok, m = validate_quad(quad, shape)
-            if not ok:
-                continue
-            s = score_candidate(quad, bgr, combined, m)
-            if best is None or s > best[0]:
-                best = (s, quad, "grabcut", clipped, m)
+    # Cheap candidates: contour (grayscale + multi-cue), Hough, paper-colour mask.
+    for q in _contour_candidates(gray_closed):
+        consider(q, "contour", False)
+    for q in _contour_candidates(combined_closed):
+        consider(q, "multi-channel", False)
+    for q in _hough_candidates(combined_closed):
+        consider(q, "hough", False)
+    for q, clipped in _paper_mask_candidates(bgr):
+        consider(q, "paper", clipped)
+
+    # Expensive GrabCut only when the cheap methods are weak or absent.
+    if best is None or best[1] < GOOD_SCORE:
+        for q, clipped in _grabcut_candidates(bgr):
+            consider(q, "grabcut", clipped)
 
     if best is None:
         return DetectionResult(_image_corners(shape), "fallback", False, 0.0,
                                None, False)
-    s, quad, method, clipped, m = best
+    _, s, quad, method, clipped, m = best
     return DetectionResult(quad, method, True, round(s, 3), m, clipped)

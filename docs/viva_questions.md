@@ -1,7 +1,7 @@
 # Viva Questions & Answers — Automatic Document Scanner
 
 Short, defensible answers to the questions most likely to come up. Grouped by
-topic. (46 questions.)
+topic. (50 questions.)
 
 ---
 
@@ -293,6 +293,38 @@ the whole page in frame. Manual corner clicking is the final fallback.
 **46. Doesn't all this extra processing make it slow?**
 Not for normal photos: the cheap contour method handles them in ~10 ms and the
 GrabCut fallback is **skipped** when a candidate already scores well. GrabCut only
-runs on genuinely hard images, which raises the *average* to ~70 ms on the test
+runs on genuinely hard images, which raises the *average* to ~75 ms on the test
 set — still interactive. In the web app results are cached, so adjusting a slider
 doesn't re-run detection.
+
+**47. How do you detect a white page on a coloured background (e.g. a pink cloth)?**
+With a **paper-colour mask**. Paper is bright and almost colourless, so I
+threshold pixels that are **high brightness** (HSV *V*, via Otsu so it adapts to
+exposure) **and low saturation** (*S* below a cap), clean the mask with
+morphology, take the largest filled region and fit a quad. The coloured cloth has
+high saturation and is excluded, so the white page pops out even when its edges
+are faint. On my own photo of a white notebook on a pink cloth this is the method
+that wins.
+
+**48. A bug: the detector returned the whole image as the "page". How did you fix it?**
+I added a **frame rejection** rule to validation: a candidate is rejected if it
+covers more than ~92% of the image, or if its corners hug all four image borders.
+A real document is surrounded by some background, so its quad never touches every
+edge — only the frame does. Before this fix, a frame-sized quad was scored highly
+(its area was "perfect") and wrongly reported as a confident detection; now it is
+discarded and a tighter, better-supported candidate (or manual corners) is used.
+
+**49. Why do you exclude skin colour in GrabCut?**
+When someone holds the page, their fingers are foreground-coloured and GrabCut can
+merge them into the document, distorting the quad. So I detect skin in **YCrCb**
+(Cr∈[133,173], Cb∈[77,127]) and **HSV** (reddish hue, moderate saturation) and
+mark those pixels as *definite background* in the GrabCut mask, keeping the hand
+out of the detected page.
+
+**50. With several methods, how do you stop a worse one from winning?**
+Two ways. First, **validation** removes nonsense quads (too small/large, skewed,
+sliver, frame). Second, the **score** rewards a tight, well-supported, high-
+contrast rectangle, and I add a small **per-method bonus** so a precise contour or
+paper-mask quad beats a looser GrabCut blob when their scores are close. GrabCut
+also only runs when the cheap methods are weak, so it can't override a good
+edge/colour detection.

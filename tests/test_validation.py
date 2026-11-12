@@ -34,6 +34,29 @@ def test_sliver_quad_is_rejected():
     assert metrics["aspect"] > 4.0
 
 
+def test_full_frame_quad_is_rejected():
+    """The whole-image border must be rejected (it's the frame, not a page).
+
+    Regression for pic7: a candidate covering the entire frame was wrongly
+    reported as 'Auto-detected (multi-channel) · 79%'.
+    """
+    h, w = SHAPE
+    frame = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], np.float32)
+    ok, _ = validate_quad(frame, SHAPE)
+    assert ok is False
+
+
+def test_near_full_frame_quad_is_rejected():
+    """A quad covering > ~92% of the image (corners near every border) is rejected."""
+    h, w = SHAPE
+    m = 5
+    q = np.array([[m, m], [w - 1 - m, m], [w - 1 - m, h - 1 - m], [m, h - 1 - m]],
+                 np.float32)
+    ok, metrics = validate_quad(q, SHAPE)
+    assert ok is False
+    assert metrics["area_ratio"] > 0.92
+
+
 def test_good_quad_is_accepted():
     """A sensible page-like quad must pass validation."""
     ok, metrics = validate_quad(_good_quad(), SHAPE)

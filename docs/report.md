@@ -17,9 +17,9 @@ laptop and — crucially for an academic project — **every step is transparent
 explainable**. The system is delivered as a reusable Python package with three
 interfaces (command line, a Streamlit web app, and a live webcam mode) and is
 quantitatively evaluated on a labelled test set, achieving a mean corner
-localisation IoU of **93.4%** and a detection success rate of **90.6%**, running
-in real time (common pages ~10 ms; the GrabCut fallback for hard cases raises the
-average to ~70 ms).
+localisation IoU of **98.3%** and a detection success rate of **100%**, running
+in real time (common pages ~10 ms; the colour/GrabCut fallbacks for hard cases
+raise the average to ~75 ms).
 
 ---
 
@@ -217,19 +217,32 @@ candidate by score rather than trusting the first quad it finds.
   colour channels expose a boundary the grayscale channel is blind to.
 - **Candidate generators.** Candidates come from (i) contour search on the
   grayscale edges, (ii) contour search on the multi-cue edges, (iii) **Hough**
-  line intersections, and (iv) **GrabCut** segmentation. GrabCut is initialised
-  with a rectangle inset from the image border; it separates foreground from
-  background by colour statistics (Gaussian mixture models) and iterated graph
-  cuts, and we fit a quad to the largest foreground component (`approxPolyDP`,
-  falling back to `minAreaRect`). Because GrabCut is the expensive method, it is
-  run only when the cheaper candidates are weak.
-- **Candidate scoring.** Every candidate is first validated (area ≥ 20% of the
-  frame, convex, interior angles 45–135°, aspect ≤ 4:1), then scored by a blend
-  of: **area**, **rectangularity** (how close the angles are to 90°), **edge
-  support** (what fraction of the quad's outline lies on real edges), and
-  **inside-vs-outside contrast** (LAB colour difference between a band just
-  inside and just outside the quad). The highest-scoring valid candidate wins,
-  and the UI reports which method produced it.
+  line intersections, (iv) a **paper-colour mask**, and (v) **GrabCut**
+  segmentation.
+  - The **paper-colour mask** exploits the fact that paper is *bright and almost
+    colourless*: we threshold **high brightness** (HSV *V* via Otsu, so it adapts
+    to exposure) **AND low saturation** (*S* below a fixed cap), clean the mask
+    with morphology (open to drop speckle, close to bridge text gaps), take the
+    largest filled component and fit a quad. This cheaply finds a white page on a
+    *coloured or dark* background — exactly the case where edges are weak (a white
+    notebook on a pink patterned cloth).
+  - **GrabCut** is initialised with a rectangle inset from the image border and
+    separates foreground from background by colour statistics (Gaussian mixture
+    models) and iterated graph cuts. **Skin-coloured pixels** (detected in YCrCb
+    and HSV) are forced to background so a hand holding the page is not merged
+    into the document. We fit a quad to the largest foreground component
+    (`approxPolyDP`, falling back to `minAreaRect`). GrabCut is the expensive
+    method, so it runs only when the cheaper candidates are weak.
+- **Candidate scoring and frame rejection.** Every candidate is first validated
+  (area between 20% and **92%** of the frame, convex, interior angles 45–135°,
+  aspect ≤ 4:1) — and a quad that hugs **all four** image borders is rejected as
+  the *frame*, not a page. Survivors are scored by a blend of **area**,
+  **rectangularity** (angles near 90°), **edge support** (fraction of the quad's
+  outline on real edges) and **inside-vs-outside contrast** (LAB colour
+  difference across the border). A small per-method bonus biases the choice
+  toward the precise **contour/paper** quads over a GrabCut blob on a tie. The
+  highest-scoring valid candidate wins, and the UI reports which method produced
+  it.
 - **Border-aware quads.** The page may legitimately run off the frame. When the
   GrabCut foreground presses against the image border, those corners are snapped
   to the border and the result is flagged *clipped* ("some corners were
@@ -323,41 +336,46 @@ agreement of each threshold method with the known clean page).
 | Metric | Value |
 |--------|-------|
 | Images evaluated | 32 |
-| Detection success rate (IoU ≥ 0.85) | **90.6%** |
-| Mean corner IoU | **93.4%** |
-| Average processing time | **~70 ms/image** (common pages ~10 ms; GrabCut fallback on hard cases) |
+| Detection success rate (IoU ≥ 0.85) | **100%** |
+| Mean corner IoU | **98.3%** |
+| Average processing time | **~75 ms/image** (common pages ~10 ms; colour/GrabCut fallback on hard cases) |
 | Binarisation accuracy (adaptive vs Otsu) | **97.4%** vs **95.7%** |
 
 **By condition**
 
 | Condition | N | Success rate | Mean IoU |
 |-----------|---|--------------|----------|
-| Plain | 8 | 100.0% | 96.4% |
-| Tilted | 8 | 100.0% | 95.1% |
-| Low-light | 8 | 100.0% | 96.3% |
-| Cluttered | 8 | 62.5% | 85.8% |
+| Plain | 8 | 100.0% | 98.7% |
+| Tilted | 8 | 100.0% | 97.1% |
+| Low-light | 8 | 100.0% | 98.7% |
+| Cluttered | 8 | 100.0% | 98.5% |
 
 ![Detection performance by condition](../results/success_by_condition.png)
 
 ![Adaptive vs Otsu](../results/threshold_comparison.png)
 
-**Discussion.** The classical detector is **highly robust to perspective tilt
-and low light** (100% success, ~96% IoU) — exactly the cases geometry and
-adaptive thresholding handle well. The **cluttered** condition remains the
-weak point (62.5%): busy, similar-contrast backgrounds and objects that occlude
-the page border break the single closed contour, and the Hough fallback cannot
-always recover a clean quad. **Adaptive thresholding beats global Otsu** on
-binarisation (97.4% vs 95.7%), confirming the theory that local thresholds cope
-better with uneven lighting. Processing stays interactive: a typical page is
-~10 ms, and the multi-cue + GrabCut fallback (hard cases only) raises the average
-to ~70 ms on a CPU.
+**Discussion.** With the multi-cue detector the scanner reaches **100% success
+and 98.3% mean IoU** across all four synthetic conditions. The previously weak
+**cluttered** case (62.5% with edges alone) is now solved: the synthetic
+cluttered images are bright pages on busy backgrounds, and the **paper-colour
+mask** (bright + low-saturation) locates the page by its colour even when its
+edges are lost in the clutter. **Adaptive thresholding beats global Otsu** on
+binarisation (97.4% vs 95.7%), confirming that local thresholds cope better with
+uneven lighting. Processing stays interactive: a typical page is ~10 ms, and the
+colour/GrabCut fallbacks (hard cases only) raise the average to ~75 ms on a CPU.
 
-**Multi-cue detection.** A white page on a white desk, or a page that runs off
-the frame, is handled by combining colour/saturation edge cues with a GrabCut
-segmentation fallback and choosing the best candidate by a score over area,
-rectangularity, edge support and inside/outside contrast (§6.7) — so the scanner
-finds a near-invisible white-on-white boundary and *flags* a clipped page instead
-of silently using the whole frame.
+**Multi-cue detection.** Hard real-world photos are handled by three additions
+beyond edge contours (§6.7): (i) a **paper-colour mask** that finds a bright,
+low-saturation page on a coloured or dark background (e.g. a white notebook on a
+pink cloth); (ii) **colour/saturation edge cues** (LAB a/b, HSV S) for a white
+page on a white desk; and (iii) a **GrabCut** segmentation fallback that excludes
+skin-coloured pixels so fingers holding the page are not merged into it. Every
+candidate is scored (area, rectangularity, edge support, inside/outside contrast)
+and the best wins, with a small bias toward the precise contour/paper methods
+over GrabCut. Crucially, a candidate that is the **whole image border** — too
+large (> 92% area) or hugging all four edges — is rejected as the *frame*, not a
+page, and a page running off the frame is *flagged clipped* rather than silently
+accepted.
 
 **Robustness safeguards.** Every detected quad — from any method — must pass a
 shared **validation** check before it is accepted: it
@@ -376,10 +394,12 @@ reduced resolution so text edges fade while the page outline survives.
 
 ## 9. Limitations
 
-- **Cluttered / low-contrast backgrounds** are the main failure mode: when the
-  page edge blends into the background or is occluded, contour detection fails.
-  The multi-cue colour edges and GrabCut fallback improve this but do not solve
-  it completely.
+- **Low-contrast backgrounds that match the page colour** remain the hardest
+  case. The paper-colour mask handles a bright page on a *coloured* or *dark*
+  background well (synthetic cluttered is now 100%), but if the background is
+  itself bright and near-white *and* the edges are weak, no cue separates page
+  from background and detection still falls back to manual corners. Heavy
+  occlusion of the page border is also still difficult.
 - **Corners outside the frame cannot truly be recovered.** When the page runs off
   the image border, the real corner is simply not in the photo. The scanner is
   *border-aware* — it snaps the affected corners to the image edge and flags the

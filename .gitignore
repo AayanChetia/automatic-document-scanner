@@ -19,6 +19,10 @@ Thumbs.db
 # Scanner temp / results
 results/tmp/
 
+# Local demo images (personal photos) and their detection overlays — NEVER commit
+data/demo_images/
+results/demo_check/
+
 # Large output files
 output/*.pdf
 *.pdf

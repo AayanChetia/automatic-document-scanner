@@ -1,9 +1,9 @@
 {
   "overall": {
     "n_images": 32,
-    "success_rate": 0.90625,
-    "mean_iou": 0.933786923241166,
-    "avg_time_s": 0.0709307374999355,
+    "success_rate": 1.0,
+    "mean_iou": 0.9827404194188278,
+    "avg_time_s": 0.07503364062512219,
     "success_iou_threshold": 0.85,
     "adaptive_accuracy": 0.9736973958333333,
     "otsu_accuracy": 0.9571660807291666
@@ -11,22 +11,22 @@
   "by_condition": {
     "cluttered": {
       "n": 8,
-      "mean_iou": 0.8575022208693215,
-      "success_rate": 0.625
+      "mean_iou": 0.9852339182376455,
+      "success_rate": 1.0
     },
     "lowlight": {
       "n": 8,
-      "mean_iou": 0.9629465540807912,
+      "mean_iou": 0.987359036569059,
       "success_rate": 1.0
     },
     "plain": {
       "n": 8,
-      "mean_iou": 0.9635757640477614,
+      "mean_iou": 0.9869024580578682,
       "success_rate": 1.0
     },
     "tilted": {
       "n": 8,
-      "mean_iou": 0.9511231539667895,
+      "mean_iou": 0.9714662648107387,
       "success_rate": 1.0
     }
   },
@@ -34,258 +34,258 @@
     {
       "name": "cluttered_0.png",
       "condition": "cluttered",
-      "iou": 0.9645,
+      "iou": 0.9853,
       "success": true,
-      "time_s": 0.1489,
-      "method": "contour"
+      "time_s": 0.155,
+      "method": "paper"
     },
     {
       "name": "cluttered_1.png",
       "condition": "cluttered",
-      "iou": 0.9642,
+      "iou": 0.9881,
       "success": true,
-      "time_s": 0.0659,
-      "method": "contour"
+      "time_s": 0.0654,
+      "method": "paper"
     },
     {
       "name": "cluttered_2.png",
       "condition": "cluttered",
-      "iou": 0.6924,
-      "success": false,
-      "time_s": 0.052,
-      "method": "multi-channel"
+      "iou": 0.9858,
+      "success": true,
+      "time_s": 0.0561,
+      "method": "paper"
     },
     {
       "name": "cluttered_3.png",
       "condition": "cluttered",
-      "iou": 0.7349,
-      "success": false,
-      "time_s": 0.052,
-      "method": "multi-channel"
+      "iou": 0.9766,
+      "success": true,
+      "time_s": 0.0569,
+      "method": "paper"
     },
     {
       "name": "cluttered_4.png",
       "condition": "cluttered",
-      "iou": 0.9647,
+      "iou": 0.9865,
       "success": true,
-      "time_s": 0.0603,
-      "method": "contour"
+      "time_s": 0.0643,
+      "method": "paper"
     },
     {
       "name": "cluttered_5.png",
       "condition": "cluttered",
-      "iou": 0.9034,
+      "iou": 0.9875,
       "success": true,
-      "time_s": 0.0618,
-      "method": "contour"
+      "time_s": 0.0688,
+      "method": "paper"
     },
     {
       "name": "cluttered_6.png",
       "condition": "cluttered",
-      "iou": 0.9335,
+      "iou": 0.986,
       "success": true,
-      "time_s": 0.0619,
-      "method": "contour"
+      "time_s": 0.0666,
+      "method": "paper"
     },
     {
       "name": "cluttered_7.png",
       "condition": "cluttered",
-      "iou": 0.7025,
-      "success": false,
-      "time_s": 0.0504,
-      "method": "multi-channel"
+      "iou": 0.9861,
+      "success": true,
+      "time_s": 0.0561,
+      "method": "paper"
     },
     {
       "name": "lowlight_0.png",
       "condition": "lowlight",
-      "iou": 0.9634,
+      "iou": 0.987,
       "success": true,
-      "time_s": 0.0639,
-      "method": "contour"
+      "time_s": 0.0678,
+      "method": "paper"
     },
     {
       "name": "lowlight_1.png",
       "condition": "lowlight",
-      "iou": 0.963,
+      "iou": 0.9877,
       "success": true,
-      "time_s": 0.0631,
-      "method": "contour"
+      "time_s": 0.0674,
+      "method": "paper"
     },
     {
       "name": "lowlight_2.png",
       "condition": "lowlight",
-      "iou": 0.9648,
+      "iou": 0.9862,
       "success": true,
-      "time_s": 0.0612,
-      "method": "contour"
+      "time_s": 0.0653,
+      "method": "paper"
     },
     {
       "name": "lowlight_3.png",
       "condition": "lowlight",
-      "iou": 0.9621,
+      "iou": 0.987,
       "success": true,
-      "time_s": 0.0635,
-      "method": "contour"
+      "time_s": 0.064,
+      "method": "paper"
     },
     {
       "name": "lowlight_4.png",
       "condition": "lowlight",
-      "iou": 0.9629,
+      "iou": 0.9868,
       "success": true,
-      "time_s": 0.0691,
-      "method": "contour"
+      "time_s": 0.0677,
+      "method": "paper"
     },
     {
       "name": "lowlight_5.png",
       "condition": "lowlight",
-      "iou": 0.9631,
+      "iou": 0.9877,
       "success": true,
-      "time_s": 0.0739,
-      "method": "contour"
+      "time_s": 0.0663,
+      "method": "paper"
     },
     {
       "name": "lowlight_6.png",
       "condition": "lowlight",
-      "iou": 0.9624,
+      "iou": 0.9887,
       "success": true,
-      "time_s": 0.0614,
-      "method": "contour"
+      "time_s": 0.065,
+      "method": "paper"
     },
     {
       "name": "lowlight_7.png",
       "condition": "lowlight",
-      "iou": 0.962,
+      "iou": 0.9878,
       "success": true,
-      "time_s": 0.0621,
-      "method": "contour"
+      "time_s": 0.0718,
+      "method": "paper"
     },
     {
       "name": "plain_0.png",
       "condition": "plain",
-      "iou": 0.9611,
+      "iou": 0.9897,
       "success": true,
-      "time_s": 0.0595,
-      "method": "contour"
+      "time_s": 0.0673,
+      "method": "paper"
     },
     {
       "name": "plain_1.png",
       "condition": "plain",
-      "iou": 0.9637,
+      "iou": 0.9872,
       "success": true,
-      "time_s": 0.0628,
-      "method": "contour"
+      "time_s": 0.0655,
+      "method": "paper"
     },
     {
       "name": "plain_2.png",
       "condition": "plain",
-      "iou": 0.9648,
+      "iou": 0.9846,
       "success": true,
-      "time_s": 0.0596,
-      "method": "contour"
+      "time_s": 0.0626,
+      "method": "paper"
     },
     {
       "name": "plain_3.png",
       "condition": "plain",
-      "iou": 0.9653,
+      "iou": 0.9888,
       "success": true,
-      "time_s": 0.0595,
-      "method": "contour"
+      "time_s": 0.0616,
+      "method": "paper"
     },
     {
       "name": "plain_4.png",
       "condition": "plain",
-      "iou": 0.9638,
+      "iou": 0.9864,
       "success": true,
-      "time_s": 0.0567,
-      "method": "contour"
+      "time_s": 0.0645,
+      "method": "paper"
     },
     {
       "name": "plain_5.png",
       "condition": "plain",
-      "iou": 0.9652,
+      "iou": 0.9871,
       "success": true,
-      "time_s": 0.0588,
-      "method": "contour"
+      "time_s": 0.0677,
+      "method": "paper"
     },
     {
       "name": "plain_6.png",
       "condition": "plain",
-      "iou": 0.9613,
+      "iou": 0.9864,
       "success": true,
-      "time_s": 0.0638,
-      "method": "contour"
+      "time_s": 0.0656,
+      "method": "paper"
     },
     {
       "name": "plain_7.png",
       "condition": "plain",
-      "iou": 0.9634,
+      "iou": 0.985,
       "success": true,
-      "time_s": 0.0587,
-      "method": "contour"
+      "time_s": 0.0664,
+      "method": "paper"
     },
     {
       "name": "tilted_0.png",
       "condition": "tilted",
-      "iou": 0.9606,
+      "iou": 0.9862,
       "success": true,
-      "time_s": 0.0604,
-      "method": "contour"
+      "time_s": 0.0711,
+      "method": "paper"
     },
     {
       "name": "tilted_1.png",
       "condition": "tilted",
-      "iou": 0.9636,
+      "iou": 0.987,
       "success": true,
-      "time_s": 0.0748,
-      "method": "contour"
+      "time_s": 0.088,
+      "method": "paper"
     },
     {
       "name": "tilted_2.png",
       "condition": "tilted",
-      "iou": 0.9629,
+      "iou": 0.985,
       "success": true,
-      "time_s": 0.1039,
-      "method": "contour"
+      "time_s": 0.1005,
+      "method": "paper"
     },
     {
       "name": "tilted_3.png",
       "condition": "tilted",
-      "iou": 0.9623,
+      "iou": 0.9839,
       "success": true,
-      "time_s": 0.086,
-      "method": "contour"
+      "time_s": 0.101,
+      "method": "paper"
     },
     {
       "name": "tilted_4.png",
       "condition": "tilted",
       "iou": 0.8726,
       "success": true,
-      "time_s": 0.1037,
+      "time_s": 0.094,
       "method": "contour"
     },
     {
       "name": "tilted_5.png",
       "condition": "tilted",
-      "iou": 0.9625,
+      "iou": 0.9851,
       "success": true,
-      "time_s": 0.0972,
-      "method": "contour"
+      "time_s": 0.1019,
+      "method": "paper"
     },
     {
       "name": "tilted_6.png",
       "condition": "tilted",
-      "iou": 0.9629,
+      "iou": 0.9876,
       "success": true,
-      "time_s": 0.0967,
-      "method": "contour"
+      "time_s": 0.0992,
+      "method": "paper"
     },
     {
       "name": "tilted_7.png",
       "condition": "tilted",
-      "iou": 0.9616,
+      "iou": 0.9844,
       "success": true,
-      "time_s": 0.0963,
-      "method": "contour"
+      "time_s": 0.0995,
+      "method": "paper"
     }
   ]
 }

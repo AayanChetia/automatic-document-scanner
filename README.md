@@ -17,12 +17,13 @@ explainable.
   morphological close → contour/`approxPolyDP` quad detection → 4-point
   perspective warp → enhancement.
 - **Robust multi-cue detection:** candidates from contour search (grayscale **and**
-  LAB/HSV colour + morphological-gradient edges), Hough lines, and a **GrabCut**
-  segmentation fallback are each **validated** (area, convexity, angles, aspect)
-  and **scored** (area, rectangularity, edge support, inside/outside contrast) —
-  the best wins, and the UI shows which method. Handles a **white page on a white
-  desk**, and is **border-aware** (flags a page that runs off the frame). Manual
-  corner picking is the final fallback.
+  LAB/HSV colour + morphological-gradient edges), Hough lines, a **paper-colour
+  mask** (bright + low-saturation, for a white page on a coloured/dark surface),
+  and a **GrabCut** fallback (with skin/finger exclusion) are each **validated**
+  (incl. **frame rejection** — a whole-image quad is thrown out) and **scored**
+  (area, rectangularity, edge support, inside/outside contrast); the best wins and
+  the UI shows which method. **Border-aware** (flags a page that runs off the
+  frame). Manual corner picking is the final fallback.
 - **Four enhancement modes:** Original colour, Grayscale, **Magic colour**
   (CLAHE contrast boost) and **Black & White** (adaptive threshold), with Otsu
   as a comparison baseline.
@@ -127,6 +128,13 @@ python evaluate.py
 python label_tool.py
 ```
 
+**Try it on your own photos** (results saved so you can eyeball every case):
+```bash
+# Put photos in data/demo_images/ (this folder is gitignored — nothing is
+# committed), then run:
+python demo_check.py        # overlays + scans -> results/demo_check/ (gitignored)
+```
+
 ### 5. Tests
 ```bash
 pytest -q
@@ -141,27 +149,27 @@ tilted) with known ground-truth corners:
 
 | Metric | Value |
 |--------|-------|
-| Detection success rate (IoU ≥ 0.85) | **90.6%** |
-| Mean corner IoU | **93.4%** |
-| Average processing time | **~70 ms/image** (common pages ~10 ms; GrabCut on hard cases) |
+| Detection success rate (IoU ≥ 0.85) | **100%** |
+| Mean corner IoU | **98.3%** |
+| Average processing time | **~75 ms/image** (common pages ~10 ms; colour/GrabCut on hard cases) |
 | Binarisation accuracy (adaptive vs Otsu) | **97.4%** vs **95.7%** |
 
 | Condition | Success rate | Mean IoU |
 |-----------|--------------|----------|
-| Plain | 100% | 96.4% |
-| Tilted | 100% | 95.1% |
-| Low-light | 100% | 96.3% |
-| Cluttered | 62.5% | 85.8% |
+| Plain | 100% | 98.7% |
+| Tilted | 100% | 97.1% |
+| Low-light | 100% | 98.7% |
+| Cluttered | 100% | 98.5% |
 
 ![Detection by condition](results/success_by_condition.png)
 ![Adaptive vs Otsu](results/threshold_comparison.png)
 
-The detector is very robust to **tilt** and **low light**; **cluttered**
-backgrounds and **dense-text pages that fill the frame** are the main challenge.
-Every detected quad is validated (area / convexity / angles / aspect) and scored
-for **confidence**; low-confidence cases show a warning and invite manual corner
-adjustment instead of reporting a false success (future work: a learned page
-segmenter).
+The multi-cue detector (edges + **paper-colour mask** + GrabCut, best-of-N by
+score) handles tilt, low light, cluttered backgrounds and **white pages on
+coloured/dark surfaces**. Frame-sized "detections" are rejected, pages running
+off the frame are flagged *clipped*, and low-confidence cases invite manual
+corner adjustment instead of reporting a false success. The hardest remaining
+case is a near-white page on a near-white background with weak edges.
 
 ---
 
@@ -190,7 +198,7 @@ page full-resolution: Original / Final scan / Side-by-side, a zoom slider
 Automatic document scanner/
 ├── scanner/              # core CV package (one module per pipeline stage)
 │   ├── preprocess.py     # gray, blur, auto-Canny, morphological close
-│   ├── detect.py         # multi-cue candidates (colour edges + Hough + GrabCut), scored
+│   ├── detect.py         # multi-cue candidates (colour edges + paper mask + Hough + GrabCut), scored
 │   ├── transform.py      # corner ordering + perspective warp (homography)
 │   ├── enhance.py        # original / gray / magic (CLAHE) / bw / otsu
 │   ├── ocr.py            # optional pytesseract wrapper
@@ -211,7 +219,7 @@ Automatic document scanner/
 ├── docs/
 │   ├── report.md         # full project report
 │   ├── ppt_outline.md    # slide-by-slide presentation plan
-│   ├── viva_questions.md # 46 viva Q&A
+│   ├── viva_questions.md # 50 viva Q&A
 │   └── images/           # figures
 ├── results/              # charts + metrics (generated)
 └── requirements.txt
@@ -225,7 +233,7 @@ Automatic document scanner/
   architecture diagram, methodology theory and results).
 - **[docs/ppt_outline.md](docs/ppt_outline.md)** — 10–12 slide outline + live-demo
   plan.
-- **[docs/viva_questions.md](docs/viva_questions.md)** — 46 likely viva questions
+- **[docs/viva_questions.md](docs/viva_questions.md)** — 50 likely viva questions
   with concise answers.
 
 ---
